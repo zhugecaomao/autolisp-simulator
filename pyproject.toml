@@ -1,0 +1,13 @@
+[project]
+name = "autolisp-simulator"
+version = "0.1.0"
+description = "A small AutoLISP interpreter with a mock CAD, to run and test AutoLISP programs without AutoCAD"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = []
+
+[project.optional-dependencies]
+golden = ["ezdxf"]
+
+[tool.setuptools]
+packages = ["lispsim"]
