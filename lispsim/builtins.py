@@ -286,6 +286,45 @@ def load_(it, name, onfail=None):
         raise
 
 
+def wcmatch(it, s, pattern, *rest):
+    """AutoLISP wcmatch (case-sensitive): * ? # @ . ~ , [..] -- the common subset."""
+    def one(pat):
+        neg = pat.startswith("~")
+        if neg:
+            pat = pat[1:]
+        rx, i = "", 0
+        while i < len(pat):
+            c = pat[i]
+            if c == "`" and i + 1 < len(pat):
+                rx += re.escape(pat[i + 1]); i += 2; continue
+            if c == "*":
+                rx += ".*"
+            elif c == "?":
+                rx += "."
+            elif c == "#":
+                rx += r"\d"
+            elif c == "@":
+                rx += "[A-Za-z]"
+            elif c == ".":
+                rx += r"[^A-Za-z0-9]"
+            elif c == "[":
+                j = pat.find("]", i)
+                body = pat[i + 1:j]
+                rx += "[" + ("^" + body[1:] if body.startswith("~") else body) + "]"
+                i = j
+            else:
+                rx += re.escape(c)
+            i += 1
+        ok = re.fullmatch(rx, s, re.S) is not None
+        return (not ok) if neg else ok
+    return b(any(one(p) for p in re.split(r"(?<!`),", pattern)))
+
+
+def set_(it, sym_, val):
+    it.g[sym_.name] = val
+    return val
+
+
 def install(it):
     g = it.g
 
@@ -338,8 +377,10 @@ def install(it):
         "ascii": lambda it, s: ord(s[0]), "chr": lambda it, n: chr(n),
         "getenv": lambda it, n: None, "setenv": lambda it, n, v: v,
         "eval": lambda it, x: it.eval(x), "read": lambda it, s: __import__("lispsim.reader", fromlist=["x"]).read_all(s)[0],
+        "wcmatch": wcmatch, "set": set_,
         "gc": lambda it: None, "vl-bb-set": lambda it, *a: None,
     }.items():
         reg(n, f)
+    g["T"] = T
     g["PI"] = math.pi
     g["PAUSE"] = "\\"

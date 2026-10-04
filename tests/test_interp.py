@@ -44,6 +44,33 @@ class Core(unittest.TestCase):
         self.assertEqual(it.run_command("t")[0], "error")
 
 
+class Added(unittest.TestCase):
+    def test_symbol_t_is_true_in_cond(self):
+        self.assertEqual(ev("(cond ((= 1 2) 5) (T 7))")[1], 7)
+
+    def test_wcmatch(self):
+        self.assertTrue(ev('(wcmatch "Manual intervals (Y/N)" "*Manual*")')[1])
+        self.assertTrue(ev('(wcmatch "abc" "x*,a?c")')[1])
+        self.assertFalse(ev('(wcmatch "abc" "*Z*")')[1])
+
+    def test_ssget_x_and_entget(self):
+        it, r = ev('(setvar "osmode" 0) (command "line" (list 0 0) (list 5 0) "") '
+                   '(command "text" "J" "c" (list 1 2) 2.5 "90" "hi") (setq ss (ssget "X")) '
+                   '(list (sslength ss) (cdr (assoc 0 (entget (ssname ss 0)))) (assoc 11 (entget (ssname ss 1))))')
+        self.assertEqual(r[0], 2)
+        self.assertEqual(r[1], "LINE")
+        self.assertEqual(r[2], [11, 1.0, 2.0, 0.0])
+        it, r = ev('(command "line" (list 0 0) (list 5 0) "") (command "._erase" (ssget "X") "") (ssget "X")')
+        self.assertIsNone(r)
+
+    def test_set_and_quoted_lambda_as_function(self):
+        self.assertEqual(ev("(set 'q 5) (apply '(lambda (a) (+ a q)) (list 1))")[1], 6)
+
+    def test_getstring_returns_empty_string_on_enter(self):
+        it = Interp(cad=MockCad(inputs=ScriptedInputs(fallback=lambda k, p: "")))
+        self.assertEqual(it.run_text('(getstring "x")'), "")
+
+
 class Errors(unittest.TestCase):
     def test_error_handler_runs_at_the_point_of_error_with_locals_visible(self):
         it = Interp(cad=MockCad())
