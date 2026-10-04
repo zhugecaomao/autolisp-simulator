@@ -19,6 +19,11 @@ class Ename:
         return "<Entity name: %s>" % self.ent["id"]
 
 
+class SelSet:
+    def __init__(self, ents):
+        self.ents = list(ents)
+
+
 class InputMismatch(Exception):
     pass
 
@@ -87,7 +92,7 @@ class MockCad:
             "osmode": osmode, "cmdecho": 1, "pdmode": 0, "cecolor": "BYLAYER",
             "clayer": "0", "textstyle": "Standard", "dimtxt": 2.5, "dimscale": 1.0,
             "dwgname": "Drawing1.dwg", "dwgprefix": "C:\\Temp\\", "lastpoint": [0.0, 0.0, 0.0],
-            "pickfirst": 1, "angbase": 0, "angdir": 0, "orthomode": 0,
+            "acadver": "25.1s (simulator)", "product": "AutoCAD (simulator)", "lunits": 2, "luprec": 4, "pickfirst": 1, "angbase": 0, "angdir": 0, "orthomode": 0,
         }
         self.entities, self._next_id = [], 0x100
         self.log = []                 # every (command ...) call: dict
@@ -122,6 +127,9 @@ class MockCad:
         reg("command", self.command)
         reg("entlast", lambda it: Ename(self.entities[-1]) if self.entities else None)
         reg("entget", self.entget)
+        reg("ssget", self.ssget)
+        reg("sslength", lambda it, ss: len(ss.ents))
+        reg("ssname", lambda it, ss, i: Ename(ss.ents[i]) if 0 <= i < len(ss.ents) else None)
         reg("entsel", lambda it, p="": self._ask("entsel", p))
         reg("getpoint", lambda it, *a: self._point("getpoint", a))
         reg("getcorner", lambda it, *a: self._point("getcorner", a))
@@ -214,6 +222,8 @@ class MockCad:
             if v in ("", None):
                 return None
             return [Ename(v), [0.0, 0.0, 0.0]]
+        if kind == "getstring":
+            return "" if v is None else v      # Enter gives an empty string, not nil
         return v if v != "" else None
 
     def _point(self, kind, a):
@@ -237,11 +247,33 @@ class MockCad:
             self.snap_violations.append((typ, self.osmode, list(self.it.trace)))
         return ent
 
+    def ssget(self, it, mode=None, *rest):
+        if isinstance(mode, str) and mode.upper() in ("X", "_X"):
+            return SelSet(self.entities) if self.entities else None
+        raise LispError("ssget: only the \"X\" mode is simulated")
+
+    # text justification -> (group 72, group 73)
+    JUST = {"L": (0, 0), "C": (1, 0), "R": (2, 0), "BL": (0, 1), "BC": (1, 1), "BR": (2, 1),
+            "ML": (0, 2), "MC": (1, 2), "MR": (2, 2), "TL": (0, 3), "TC": (1, 3), "TR": (2, 3),
+            "A": (3, 0), "M": (4, 0), "F": (5, 0), "MIDDLE": (4, 0), "CENTER": (1, 0), "RIGHT": (2, 0)}
+
     def entget(self, it, en):
         e = en.ent
+        z = 0.0
         if e["type"] == "ARC":
             return [DPair(0, "ARC"), [10] + e["center"], DPair(40, e["radius"]),
                     DPair(50, e["a0"]), DPair(51, e["a1"])]
+        if e["type"] == "LINE":
+            return [DPair(0, "LINE"), [10, e["p"][0], e["p"][1], z], [11, e["q"][0], e["q"][1], z]]
+        if e["type"] == "POINT":
+            return [DPair(0, "POINT"), [10, e["p"][0], e["p"][1], z]]
+        if e["type"] == "TEXT":
+            h, v = self.JUST.get(e["just"], (0, 0))
+            out = [DPair(0, "TEXT"), [10, e["p"][0], e["p"][1], z], DPair(40, e["height"] or 0.0),
+                   DPair(1, e["text"]), DPair(50, math.radians(e["rot"])), DPair(72, h), DPair(73, v)]
+            if h or v:
+                out.append([11, e["p"][0], e["p"][1], z])
+            return out
         return [DPair(0, e["type"])]
 
     # ------------------------------------------------------------- command
@@ -370,6 +402,10 @@ class MockCad:
         t = a[0] if a else None
         if isinstance(t, Ename):
             return [t.ent], a[1:]
+        if isinstance(t, SelSet):
+            return list(t.ents), a[1:]
+        if isinstance(t, str) and t.lower() in ("all", "_all"):
+            return list(self.entities), a[1:]
         if isinstance(t, str) and t.lower() == "l":
             return ([self.entities[-1]] if self.entities else []), a[1:]
         return [], a

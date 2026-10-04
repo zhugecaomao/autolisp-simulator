@@ -105,6 +105,9 @@ class Interp:
     def apply(self, fn, args, head=None):
         if isinstance(fn, Sym):
             fn = self.g.get(fn.name)
+        if isinstance(fn, list) and fn and isinstance(fn[0], Sym) and fn[0].name == "LAMBDA":
+            p, l = _params(fn[1])
+            fn = Lambda(p, l, fn[2:], "lambda")      # '(lambda ...) used as a function
         if isinstance(fn, Builtin):
             try:
                 return fn.fn(self, *args)
