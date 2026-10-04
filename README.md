@@ -61,3 +61,7 @@ dialog dictionaries `{"key": "value"}`, and `ESC` / `esc_at`.
 Functions live in `lispsim/builtins.py` (standard library) and `lispsim/cad.py` (CAD-specific: `command`,
 dialogs, input, entities). If a program uses something that is missing you get an AutoLISP error such as
 `no function definition: FOO` - add it there.
+
+## License
+
+[GPL-3.0](LICENSE) (c) zhugecaomao
