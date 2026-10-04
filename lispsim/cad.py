@@ -92,7 +92,7 @@ class MockCad:
             "osmode": osmode, "cmdecho": 1, "pdmode": 0, "cecolor": "BYLAYER",
             "clayer": "0", "textstyle": "Standard", "dimtxt": 2.5, "dimscale": 1.0,
             "dwgname": "Drawing1.dwg", "dwgprefix": "C:\\Temp\\", "lastpoint": [0.0, 0.0, 0.0],
-            "acadver": "25.1s (simulator)", "product": "AutoCAD (simulator)", "lunits": 2, "luprec": 4, "pickfirst": 1, "angbase": 0, "angdir": 0, "orthomode": 0,
+            "acadver": "25.1s (simulator)", "tempprefix": "C:\\Temp\\", "product": "AutoCAD (simulator)", "lunits": 2, "luprec": 4, "pickfirst": 1, "angbase": 0, "angdir": 0, "orthomode": 0,
         }
         self.entities, self._next_id = [], 0x100
         self.log = []                 # every (command ...) call: dict
@@ -162,6 +162,7 @@ class MockCad:
         reg("dimy_tile", lambda it, k: 100)
         reg("open", self.open_)
         reg("close", self.close_)
+        reg("vl-file-delete", self.file_delete)
         reg("write-line", self.write_line)
         reg("read-line", self.read_line)
 
@@ -546,6 +547,13 @@ class MockCad:
         fh = open(p, {"r": "r", "w": "w", "a": "a"}[m], encoding="latin-1")
         self.files[self._fid] = fh
         return self._fid
+
+    def file_delete(self, it, name):
+        p = self._path(name)
+        if p.exists():
+            p.unlink()
+            return T
+        return None
 
     def close_(self, it, fid):
         self.files.pop(fid).close()

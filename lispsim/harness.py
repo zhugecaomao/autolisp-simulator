@@ -3,9 +3,11 @@ from .cad import MockCad
 from .interp import Interp
 
 
-def session(inputs, search_path, entry=None, osmode=4133):
-    """Interpreter + mock CAD; `entry` (a .lsp found on search_path) is loaded if given."""
-    cad = MockCad(inputs=inputs, osmode=osmode)
+def session(inputs, search_path, entry=None, osmode=4133, workdir=None):
+    """Interpreter + mock CAD; `entry` (a .lsp found on search_path) is loaded if given.
+    `workdir` is where (open ...) files end up: pass the same folder to a second session to
+    simulate "the next AutoCAD session" (e.g. recovery after a crash)."""
+    cad = MockCad(inputs=inputs, osmode=osmode, workdir=workdir)
     it = Interp(search_path=search_path, cad=cad)
     if entry:
         it.load_file(entry)

@@ -71,6 +71,25 @@ class Added(unittest.TestCase):
         self.assertEqual(it.run_text('(getstring "x")'), "")
 
 
+class Files(unittest.TestCase):
+    def test_tempprefix_and_vl_file_delete(self):
+        it, r = ev('(setq f (open (strcat (getvar "tempprefix") "x.txt") "w")) (write-line "4133" f) (close f)'
+                   '(setq f (open (strcat (getvar "tempprefix") "x.txt") "r")) (setq l (read-line f)) (close f)'
+                   '(list l (vl-file-delete (strcat (getvar "tempprefix") "x.txt")) '
+                   '(open (strcat (getvar "tempprefix") "x.txt") "r"))')
+        self.assertEqual(r[0], "4133")      # written and read back
+        self.assertTrue(r[1])               # deleted
+        self.assertIsNone(r[2])             # and gone
+
+    def test_a_second_session_sees_the_files_of_the_first(self):
+        import tempfile
+        d = tempfile.mkdtemp()
+        it1, _ = session(ScriptedInputs(), [], workdir=d)
+        it1.run_text('(setq f (open "C:\\Temp\\keep.txt" "w")) (write-line "hello" f) (close f)')
+        it2, _ = session(ScriptedInputs(), [], workdir=d)
+        self.assertEqual(it2.run_text('(setq f (open "C:\\Temp\\keep.txt" "r")) (read-line f)'), "hello")
+
+
 class Errors(unittest.TestCase):
     def test_error_handler_runs_at_the_point_of_error_with_locals_visible(self):
         it = Interp(cad=MockCad())
